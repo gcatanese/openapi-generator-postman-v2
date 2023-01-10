@@ -1,4 +1,4 @@
-FROM adoptopenjdk:11-jre-hotspot
+FROM adoptopenjdk:11.0.11_9-jre-hotspot
 
 # default destination folder
 ENV outputFolder=/usr/src/app
