@@ -106,4 +106,4 @@ components:
         - emailVerified
 tags:
   - name: basic
-    description: A group of a Basic endpoints
+    description: A group of Basic endpoints

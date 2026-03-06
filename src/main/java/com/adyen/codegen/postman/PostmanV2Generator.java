@@ -273,7 +273,6 @@ public class PostmanV2Generator extends DefaultCodegen implements CodegenConfig 
 
   void addToMap(CodegenOperation codegenOperation){
 
-    PostmanRequestFolder folder = new PostmanRequestFolder();
     String tagName;
     String tagDescription;
     if(codegenOperation.tags == null || codegenOperation.tags.isEmpty()) {
@@ -287,8 +286,7 @@ public class PostmanV2Generator extends DefaultCodegen implements CodegenConfig 
         tagDescription = tagName + " tag";
       }
     }
-    folder.setName(tagName);
-	  folder.setDescription(tagDescription);
+    PostmanRequestFolder folder = new PostmanRequestFolder(tagName, tagDescription);
 
 	  List<CodegenOperation> list = codegenOperationsByTag.get(folder);
 
