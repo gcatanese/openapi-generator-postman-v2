@@ -1,5 +1,6 @@
 package com.adyen.codegen.postman;
 
+import com.adyen.codegen.postman.model.PostmanRequestFolder;
 import com.adyen.codegen.postman.model.PostmanRequestItem;
 import com.adyen.codegen.postman.model.PostmanResponse;
 import com.adyen.codegen.postman.model.PostmanVariable;
@@ -54,7 +55,7 @@ public class PostmanV2Generator extends DefaultCodegen implements CodegenConfig 
 
 
   // operations grouped by tag
-  protected Map<String, List<CodegenOperation>> codegenOperationsByTag = new HashMap<>();
+  protected Map<PostmanRequestFolder, List<CodegenOperation>> codegenOperationsByTag = new HashMap<>();
   // list of operations
   protected List<CodegenOperation> codegenOperationsList = new ArrayList<>();
 
@@ -270,24 +271,33 @@ public class PostmanV2Generator extends DefaultCodegen implements CodegenConfig 
     return results;
   }
 
-
   void addToMap(CodegenOperation codegenOperation){
 
-    String key;
+    PostmanRequestFolder folder = new PostmanRequestFolder();
+    String tagName;
+    String tagDescription;
     if(codegenOperation.tags == null || codegenOperation.tags.isEmpty()) {
-      key = "default";
+      tagName = "Default";
+      tagDescription = "Default tag";
     } else {
-      key = codegenOperation.tags.get(0).getName();
+      // get from spec
+      tagName = codegenOperation.tags.get(0).getName();
+      tagDescription = codegenOperation.tags.get(0).getDescription();
+      if(tagDescription == null) {
+        tagDescription = tagName + " tag";
+      }
     }
+    folder.setName(tagName);
+	  folder.setDescription(tagDescription);
 
-    List<CodegenOperation> list = codegenOperationsByTag.get(key);
+	  List<CodegenOperation> list = codegenOperationsByTag.get(folder);
 
     if(list == null) {
       list = new ArrayList<>();
     }
     list.add(codegenOperation);
 
-    codegenOperationsByTag.put(key, list);
+    codegenOperationsByTag.put(folder, list);
 
     // sort requests by path
     list.sort(Comparator.comparing(obj -> obj.path));
