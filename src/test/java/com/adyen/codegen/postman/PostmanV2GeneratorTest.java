@@ -1,5 +1,6 @@
 package com.adyen.codegen.postman;
 
+import com.adyen.codegen.postman.model.PostmanRequestFolder;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.adyen.codegen.postman.model.PostmanRequestItem;
 import io.swagger.v3.oas.models.tags.Tag;
@@ -20,909 +21,927 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class PostmanV2GeneratorTest {
 
-  @Test
-  public void testInitialConfigValues() throws Exception {
-    final PostmanV2Generator postmanV2Generator = new PostmanV2Generator();
-    postmanV2Generator.processOpts();
+	@Test
+	public void testInitialConfigValues() throws Exception {
+		final PostmanV2Generator postmanV2Generator = new PostmanV2Generator();
+		postmanV2Generator.processOpts();
 
-    Assert.assertEquals(postmanV2Generator.folderStrategy, "Tags");
-    Assert.assertEquals(postmanV2Generator.postmanFile, "postman.json");
+		Assert.assertEquals("Tags", postmanV2Generator.folderStrategy);
+		Assert.assertEquals("postman.json", postmanV2Generator.postmanFile);
 
-    Assert.assertNull(postmanV2Generator.additionalProperties().get("codegenOperationsList"));
-    Assert.assertNotNull(postmanV2Generator.additionalProperties().get("codegenOperationsByTag"));
-  }
+		Assert.assertNull(postmanV2Generator.additionalProperties().get("codegenOperationsList"));
+		Assert.assertNotNull(postmanV2Generator.additionalProperties().get("codegenOperationsByTag"));
+	}
 
-  @Test
-  public void testConfigWithFolderStrategyTags() throws Exception {
-    final PostmanV2Generator postmanV2Generator = new PostmanV2Generator();
+	@Test
+	public void testConfigWithFolderStrategyTags() throws Exception {
+		final PostmanV2Generator postmanV2Generator = new PostmanV2Generator();
 
-    postmanV2Generator.additionalProperties().put(postmanV2Generator.FOLDER_STRATEGY, "Tags");
-    postmanV2Generator.processOpts();
+		postmanV2Generator.additionalProperties().put(postmanV2Generator.FOLDER_STRATEGY, "Tags");
+		postmanV2Generator.processOpts();
 
-    Assert.assertEquals(postmanV2Generator.folderStrategy, "Tags");
+		Assert.assertEquals("Tags", postmanV2Generator.folderStrategy);
 
-    Assert.assertNull(postmanV2Generator.additionalProperties().get("codegenOperationsList"));
-    Assert.assertNotNull(postmanV2Generator.additionalProperties().get("codegenOperationsByTag"));
-  }
+		Assert.assertNull(postmanV2Generator.additionalProperties().get("codegenOperationsList"));
+		Assert.assertNotNull(postmanV2Generator.additionalProperties().get("codegenOperationsByTag"));
+	}
 
-  @Test
-  public void testConfigWithCreationPostmanVariables() throws Exception {
-    final PostmanV2Generator postmanV2Generator = new PostmanV2Generator();
+	@Test
+	public void testConfigWithCreationPostmanVariables() throws Exception {
+		final PostmanV2Generator postmanV2Generator = new PostmanV2Generator();
 
-    postmanV2Generator.additionalProperties().put(postmanV2Generator.POSTMAN_VARIABLES, "VAR1-VAR2-VAR3");
-    postmanV2Generator.processOpts();
+		postmanV2Generator.additionalProperties().put(postmanV2Generator.POSTMAN_VARIABLES, "VAR1-VAR2-VAR3");
+		postmanV2Generator.processOpts();
 
-    Assert.assertTrue(postmanV2Generator.isCreatePostmanVariables());
-    Assert.assertArrayEquals(postmanV2Generator.postmanVariableNames, new String[]{"VAR1", "VAR2", "VAR3"});
-  }
+		Assert.assertTrue(postmanV2Generator.isCreatePostmanVariables());
+		Assert.assertArrayEquals(new String[]{"VAR1", "VAR2", "VAR3"}, postmanV2Generator.postmanVariableNames);
+	}
 
-  @Test
-  public void testBasicGeneration() throws IOException {
+	@Test
+	public void testBasicGeneration() throws IOException {
 
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
 
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .setInputSpec("./src/test/resources/Basic.yaml")
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.setInputSpec("./src/test/resources/Basic.yaml")
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
 
-    final ClientOptInput clientOptInput = configurator.toClientOptInput();
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(clientOptInput).generate();
+		final ClientOptInput clientOptInput = configurator.toClientOptInput();
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(clientOptInput).generate();
 
-    System.out.println(files);
-    files.forEach(File::deleteOnExit);
+		System.out.println(files);
+		files.forEach(File::deleteOnExit);
 
-    Path path = Paths.get(output + "/postman.json");
-    TestUtils.assertFileExists(path);
-    TestUtils.assertFileContains(path, "\"schema\": \"https://schema.getpostman.com/json/collection/v2.1.0/collection.json\"");
+		Path path = Paths.get(output + "/postman.json");
+		TestUtils.assertFileExists(path);
+		TestUtils.assertFileContains(path, "\"schema\": \"https://schema.getpostman.com/json/collection/v2.1.0/collection.json\"");
 
-    // verify request name (from summary)
-    TestUtils.assertFileContains(path, "\"name\": \"Get User\"");
-    // verify request endpoint
-    TestUtils.assertFileContains(path, "\"name\": \"/users/:userId\"");
+		// verify request name (from summary)
+		TestUtils.assertFileContains(path, "\"name\": \"Get User\"");
+		// verify request endpoint
+		TestUtils.assertFileContains(path, "\"name\": \"/users/:userId\"");
+		// verify folder match tag
+		TestUtils.assertFileContains(path, "\"name\": \"basic\"");
+		TestUtils.assertFileContains(path, "\"description\": \"A group of Basic endpoints\"");
 
-  }
+	}
 
-  @Test
-  public void testBasicGenerationJson() throws IOException {
+	@Test
+	public void testBasicGenerationJson() throws IOException {
 
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
 
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .setInputSpec("./src/test/resources/BasicJson.json")
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.setInputSpec("./src/test/resources/BasicJson.json")
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
 
-    final ClientOptInput clientOptInput = configurator.toClientOptInput();
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(clientOptInput).generate();
+		final ClientOptInput clientOptInput = configurator.toClientOptInput();
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(clientOptInput).generate();
 
-    System.out.println(files);
-    files.forEach(File::deleteOnExit);
+		System.out.println(files);
+		files.forEach(File::deleteOnExit);
 
-    Path path = Paths.get(output + "/postman.json");
-    TestUtils.assertFileExists(path);
-    TestUtils.assertFileContains(path, "\"schema\": \"https://schema.getpostman.com/json/collection/v2.1.0/collection.json\"");
-  }
+		Path path = Paths.get(output + "/postman.json");
+		TestUtils.assertFileExists(path);
+		TestUtils.assertFileContains(path, "\"schema\": \"https://schema.getpostman.com/json/collection/v2.1.0/collection.json\"");
 
-  @Test
-  public void testValidatePostmanJson() throws IOException {
+		// verify folder name
+		TestUtils.assertFileContains(path, "\"name\": \"Basic\"");
+		// verify folder description when tag description is not available
+		TestUtils.assertFileContains(path, "\"description\": \"Basic tag\"");
+	}
 
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
+	@Test
+	public void testValidatePostmanJson() throws IOException {
 
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .setInputSpec("./src/test/resources/SampleProject.yaml")
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
 
-    final ClientOptInput clientOptInput = configurator.toClientOptInput();
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(clientOptInput).generate();
-
-    System.out.println(files);
-    files.forEach(File::deleteOnExit);
-
-    final ObjectMapper mapper = new ObjectMapper();
-    mapper.readTree(new FileReader(output + "/postman.json"));
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.setInputSpec("./src/test/resources/SampleProject.yaml")
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
 
-  }
-  
-  @Test
-  public void testVariables() throws IOException, ParseException {
+		final ClientOptInput clientOptInput = configurator.toClientOptInput();
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(clientOptInput).generate();
 
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
+		System.out.println(files);
+		files.forEach(File::deleteOnExit);
 
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .setInputSpec("./src/test/resources/SampleProject.yaml")
-            .addAdditionalProperty(PostmanV2Generator.PATH_PARAMS_AS_VARIABLES, true)
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+		final ObjectMapper mapper = new ObjectMapper();
+		mapper.readTree(new FileReader(output + "/postman.json"));
 
-    final ClientOptInput clientOptInput = configurator.toClientOptInput();
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(clientOptInput).generate();
+	}
 
-    System.out.println(files);
-    files.forEach(File::deleteOnExit);
+	@Test
+	public void testVariables() throws IOException, ParseException {
 
-    Path path = Paths.get(output + "/postman.json");
-    TestUtils.assertFileExists(path);
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
 
-    JSONObject jsonObject = (JSONObject) new JSONParser().parse(new FileReader(output + "/postman.json"));
-    // verify json has variables
-    assertTrue(jsonObject.get("variable") instanceof JSONArray);
-    assertEquals(6, ((JSONArray) jsonObject.get("variable")).size());
-    // verify param userId (without default value)
-    TestUtils.assertFileContains(path,
-            "key\": \"userId\", \"value\": \"\", \"type\": \"number\"");
-    // verify param groupId (with default value)
-    TestUtils.assertFileContains(path,
-            "key\": \"groupId\", \"value\": \"1\", \"type\": \"number\"");
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.setInputSpec("./src/test/resources/SampleProject.yaml")
+				.addAdditionalProperty(PostmanV2Generator.PATH_PARAMS_AS_VARIABLES, true)
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
 
-    // verify request endpoint
-    TestUtils.assertFileContains(path, "\"name\": \"/users/:userId\"");
+		final ClientOptInput clientOptInput = configurator.toClientOptInput();
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(clientOptInput).generate();
 
-  }
+		System.out.println(files);
+		files.forEach(File::deleteOnExit);
 
-  @Test
-  public void testVariablesInRequestExample() throws IOException, ParseException {
+		Path path = Paths.get(output + "/postman.json");
+		TestUtils.assertFileExists(path);
 
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
+		JSONObject jsonObject = (JSONObject) new JSONParser().parse(new FileReader(output + "/postman.json"));
+		// verify json has variables
+		assertTrue(jsonObject.get("variable") instanceof JSONArray);
+		assertEquals(6, ((JSONArray) jsonObject.get("variable")).size());
+		// verify param userId (without default value)
+		TestUtils.assertFileContains(path,
+				"key\": \"userId\", \"value\": \"\", \"type\": \"number\"");
+		// verify param groupId (with default value)
+		TestUtils.assertFileContains(path,
+				"key\": \"groupId\", \"value\": \"1\", \"type\": \"number\"");
 
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .setInputSpec("./src/test/resources/BasicVariablesInExample.yaml")
-            .addAdditionalProperty(PostmanV2Generator.POSTMAN_VARIABLES, "MY_VAR_NAME -MY_VAR_LAST_NAME ")
-            .addAdditionalProperty(PostmanV2Generator.PATH_PARAMS_AS_VARIABLES, true)
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+		// verify request endpoint
+		TestUtils.assertFileContains(path, "\"name\": \"/users/:userId\"");
 
-    final ClientOptInput clientOptInput = configurator.toClientOptInput();
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(clientOptInput).generate();
+	}
 
-    System.out.println(files);
-    files.forEach(File::deleteOnExit);
+	@Test
+	public void testVariablesInRequestExample() throws IOException, ParseException {
 
-    Path path = Paths.get(output + "/postman.json");
-    TestUtils.assertFileExists(path);
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
 
-    JSONObject jsonObject = (JSONObject) new JSONParser().parse(new FileReader(output + "/postman.json"));
-    // verify json has variables
-    assertTrue(jsonObject.get("variable") instanceof JSONArray);
-    assertEquals(4, ((JSONArray) jsonObject.get("variable")).size());
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.setInputSpec("./src/test/resources/BasicVariablesInExample.yaml")
+				.addAdditionalProperty(PostmanV2Generator.POSTMAN_VARIABLES, "MY_VAR_NAME -MY_VAR_LAST_NAME ")
+				.addAdditionalProperty(PostmanV2Generator.PATH_PARAMS_AS_VARIABLES, true)
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
 
-    TestUtils.assertFileContains(path, "{{MY_VAR_NAME}}");
+		final ClientOptInput clientOptInput = configurator.toClientOptInput();
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(clientOptInput).generate();
 
-    // verify request endpoint
-    TestUtils.assertFileContains(path, "\"name\": \"/users/:userId\"");
+		System.out.println(files);
+		files.forEach(File::deleteOnExit);
 
-  }
-  @Test
-  public void testVariableThatDoesNotExist() throws IOException, ParseException {
+		Path path = Paths.get(output + "/postman.json");
+		TestUtils.assertFileExists(path);
 
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
+		JSONObject jsonObject = (JSONObject) new JSONParser().parse(new FileReader(output + "/postman.json"));
+		// verify json has variables
+		assertTrue(jsonObject.get("variable") instanceof JSONArray);
+		assertEquals(4, ((JSONArray) jsonObject.get("variable")).size());
 
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .setInputSpec("./src/test/resources/BasicVariablesInExample.yaml")
-            .addAdditionalProperty(PostmanV2Generator.POSTMAN_VARIABLES, "NOT_FOUND_VARIABLE")
-            .addAdditionalProperty(PostmanV2Generator.PATH_PARAMS_AS_VARIABLES, true)
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+		TestUtils.assertFileContains(path, "{{MY_VAR_NAME}}");
 
-    final ClientOptInput clientOptInput = configurator.toClientOptInput();
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(clientOptInput).generate();
+		// verify request endpoint
+		TestUtils.assertFileContains(path, "\"name\": \"/users/:userId\"");
 
-    System.out.println(files);
-    files.forEach(File::deleteOnExit);
+	}
 
-    Path path = Paths.get(output + "/postman.json");
-    TestUtils.assertFileExists(path);
+	@Test
+	public void testVariableThatDoesNotExist() throws IOException, ParseException {
 
-    JSONObject jsonObject = (JSONObject) new JSONParser().parse(new FileReader(output + "/postman.json"));
-    // verify json has 2 variables only
-    assertTrue(jsonObject.get("variable") instanceof JSONArray);
-    assertEquals(2, ((JSONArray) jsonObject.get("variable")).size());
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
 
-    TestUtils.assertFileNotContains(path, "{{NOT_FOUND_VAR}}");
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.setInputSpec("./src/test/resources/BasicVariablesInExample.yaml")
+				.addAdditionalProperty(PostmanV2Generator.POSTMAN_VARIABLES, "NOT_FOUND_VARIABLE")
+				.addAdditionalProperty(PostmanV2Generator.PATH_PARAMS_AS_VARIABLES, true)
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
 
-  }
-  @Test
-  public void testGenerateWithoutPathParamsVariables() throws IOException, ParseException {
+		final ClientOptInput clientOptInput = configurator.toClientOptInput();
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(clientOptInput).generate();
 
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
+		System.out.println(files);
+		files.forEach(File::deleteOnExit);
 
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .setInputSpec("./src/test/resources/SampleProject.yaml")
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+		Path path = Paths.get(output + "/postman.json");
+		TestUtils.assertFileExists(path);
 
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(configurator.toClientOptInput()).generate();
+		JSONObject jsonObject = (JSONObject) new JSONParser().parse(new FileReader(output + "/postman.json"));
+		// verify json has 2 variables only
+		assertTrue(jsonObject.get("variable") instanceof JSONArray);
+		assertEquals(2, ((JSONArray) jsonObject.get("variable")).size());
 
-    System.out.println(files);
-    files.forEach(File::deleteOnExit);
+		TestUtils.assertFileNotContains(path, "{{NOT_FOUND_VAR}}");
 
-    TestUtils.assertFileExists(Paths.get(output + "/postman.json"));
+	}
 
-    JSONObject jsonObject = (JSONObject) new JSONParser().parse(new FileReader(output + "/postman.json"));
-    // verify json has only Server variables (baseUrl, etc..)
-    assertTrue(jsonObject.get("variable") instanceof JSONArray);
-    assertEquals(4, ((JSONArray) jsonObject.get("variable")).size());
+	@Test
+	public void testGenerateWithoutPathParamsVariables() throws IOException, ParseException {
 
-  }
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
 
-  @Test
-  public void testComponentExamples() throws IOException, ParseException {
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.setInputSpec("./src/test/resources/SampleProject.yaml")
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
 
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(configurator.toClientOptInput()).generate();
 
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .setInputSpec("./src/test/resources/SampleProject.yaml")
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+		System.out.println(files);
+		files.forEach(File::deleteOnExit);
 
-    final ClientOptInput clientOptInput = configurator.toClientOptInput();
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(clientOptInput).generate();
+		TestUtils.assertFileExists(Paths.get(output + "/postman.json"));
 
-    System.out.println(files);
-    files.forEach(File::deleteOnExit);
+		JSONObject jsonObject = (JSONObject) new JSONParser().parse(new FileReader(output + "/postman.json"));
+		// verify json has only Server variables (baseUrl, etc..)
+		assertTrue(jsonObject.get("variable") instanceof JSONArray);
+		assertEquals(4, ((JSONArray) jsonObject.get("variable")).size());
 
-    Path path = Paths.get(output + "/postman.json");
-    TestUtils.assertFileExists(path);
-    // verify response body comes from components/examples
-    TestUtils.assertFileContains(path, "\"name\": \"Example request for Get User\"");
-    TestUtils.assertFileContains(path, "\"raw\": \"{\\n  \\\"id\\\": 777,\\n  \\\"firstName\\\": \\\"Alotta\\\",\\n  \\\"lastName\\\": \\\"Rotta\\\",\\n ");
-  }
+	}
 
-  @Test
-  public void testNamingRequestsWithUrl() throws IOException, ParseException {
+	@Test
+	public void testComponentExamples() throws IOException, ParseException {
 
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
 
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .setInputSpec("./src/test/resources/SampleProject.yaml")
-            .addAdditionalProperty(PostmanV2Generator.PATH_PARAMS_AS_VARIABLES, true)
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.setInputSpec("./src/test/resources/SampleProject.yaml")
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
 
-    final ClientOptInput clientOptInput = configurator.toClientOptInput();
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(clientOptInput).generate();
+		final ClientOptInput clientOptInput = configurator.toClientOptInput();
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(clientOptInput).generate();
 
-    System.out.println(files);
-    files.forEach(File::deleteOnExit);
+		System.out.println(files);
+		files.forEach(File::deleteOnExit);
 
-    Path path = Paths.get(output + "/postman.json");
-    TestUtils.assertFileExists(path);
-    // verify request name (from path)
-    TestUtils.assertFileContains(path, "\"name\": \"/users/:userId\"");
-  }
+		Path path = Paths.get(output + "/postman.json");
+		TestUtils.assertFileExists(path);
+		// verify response body comes from components/examples
+		TestUtils.assertFileContains(path, "\"name\": \"Example request for Get User\"");
+		TestUtils.assertFileContains(path, "\"raw\": \"{\\n  \\\"id\\\": 777,\\n  \\\"firstName\\\": \\\"Alotta\\\",\\n  \\\"lastName\\\": \\\"Rotta\\\",\\n ");
+	}
 
-  @Test
-  public void testExampleFromSchema() throws IOException, ParseException {
+	@Test
+	public void testNamingRequestsWithUrl() throws IOException, ParseException {
 
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
 
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .addAdditionalProperty(PostmanV2Generator.REQUEST_PARAMETER_GENERATION, "Schema")
-            .setInputSpec("./src/test/resources/SampleProject.yaml")
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.setInputSpec("./src/test/resources/SampleProject.yaml")
+				.addAdditionalProperty(PostmanV2Generator.PATH_PARAMS_AS_VARIABLES, true)
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
 
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(configurator.toClientOptInput()).generate();
+		final ClientOptInput clientOptInput = configurator.toClientOptInput();
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(clientOptInput).generate();
 
-    System.out.println(files);
-    files.forEach(File::deleteOnExit);
+		System.out.println(files);
+		files.forEach(File::deleteOnExit);
 
-    Path path = Paths.get(output + "/postman.json");
-    TestUtils.assertFileExists(path);
-    // verify request name (from path)
-    TestUtils.assertFileContains(path, "{\\n \\\"firstName\\\": \\\"<string>\\\",\\n \\\"lastName\\\": \\\"<string>\\\",\\n \\\"email\\\": \\\"<string>\\\",\\n \\\"dateOfBirth\\\": \\\"<date>\\\"\\n}");
+		Path path = Paths.get(output + "/postman.json");
+		TestUtils.assertFileExists(path);
+		// verify request name (from path)
+		TestUtils.assertFileContains(path, "\"name\": \"/users/:userId\"");
+	}
 
-  }
+	@Test
+	public void testExampleFromSchema() throws IOException, ParseException {
 
-  @Test
-  public void testSecuritySchemes() throws IOException, ParseException {
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
 
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.addAdditionalProperty(PostmanV2Generator.REQUEST_PARAMETER_GENERATION, "Schema")
+				.setInputSpec("./src/test/resources/SampleProject.yaml")
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
 
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .setInputSpec("./src/test/resources/SampleProject.yaml")
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(configurator.toClientOptInput()).generate();
 
-    final ClientOptInput clientOptInput = configurator.toClientOptInput();
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(clientOptInput).generate();
+		System.out.println(files);
+		files.forEach(File::deleteOnExit);
 
-    System.out.println(files);
-    files.forEach(File::deleteOnExit);
+		Path path = Paths.get(output + "/postman.json");
+		TestUtils.assertFileExists(path);
+		// verify request name (from path)
+		TestUtils.assertFileContains(path, "{\\n \\\"firstName\\\": \\\"<string>\\\",\\n \\\"lastName\\\": \\\"<string>\\\",\\n \\\"email\\\": \\\"<string>\\\",\\n \\\"dateOfBirth\\\": \\\"<date>\\\"\\n}");
 
-    Path path = Paths.get(output + "/postman.json");
-    TestUtils.assertFileExists(path);
-    // check auth basic (1st security scheme in OpenAPI file)
-    TestUtils.assertFileContains(path, "\"auth\": { \"type\": \"basic\", \"basic\": [");
-    // check auth apiKey NOT found
-    TestUtils.assertFileNotContains(path, "\"auth\": { \"type\": \"apikey\", \"apikey\": [");
-  }
+	}
 
-  @Test
-  public void testHeaderParameters() throws IOException, ParseException {
+	@Test
+	public void testSecuritySchemes() throws IOException, ParseException {
 
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
 
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .setInputSpec("./src/test/resources/SampleProject.yaml")
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.setInputSpec("./src/test/resources/SampleProject.yaml")
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
 
-    final ClientOptInput clientOptInput = configurator.toClientOptInput();
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(clientOptInput).generate();
+		final ClientOptInput clientOptInput = configurator.toClientOptInput();
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(clientOptInput).generate();
 
-    files.forEach(File::deleteOnExit);
+		System.out.println(files);
+		files.forEach(File::deleteOnExit);
 
-    Path path = Paths.get(output + "/postman.json");
-    TestUtils.assertFileExists(path);
-    TestUtils.assertFileContains(path, "{ \"key\": \"Content-Type\", \"value\": \"application/json\"");
-    TestUtils.assertFileContains(path, "{ \"key\": \"Accept\", \"value\": \"application/json\"");
-    // header without default value (disabled: true)
-    TestUtils.assertFileContains(path, "{ \"key\": \"Custom-Header\", \"value\": \"\", \"description\": \"Custom HTTP header\", \"disabled\": true");
-    // header with default value (disabled: false)
-    TestUtils.assertFileContains(path, "{ \"key\": \"Another-Custom-Header\", \"value\": \"abc\", \"description\": \"Custom HTTP header with default\", \"disabled\": false");
-  }
+		Path path = Paths.get(output + "/postman.json");
+		TestUtils.assertFileExists(path);
+		// check auth basic (1st security scheme in OpenAPI file)
+		TestUtils.assertFileContains(path, "\"auth\": { \"type\": \"basic\", \"basic\": [");
+		// check auth apiKey NOT found
+		TestUtils.assertFileNotContains(path, "\"auth\": { \"type\": \"apikey\", \"apikey\": [");
+	}
 
-  @Test
-  public void extractExampleByName() {
-    String str = "#/components/examples/get-user-basic";
+	@Test
+	public void testHeaderParameters() throws IOException, ParseException {
 
-    assertEquals("get-user-basic", new PostmanV2Generator().extractExampleByName(str));
-  }
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
 
-  @Test
-  public void processRequestExample() {
-    String STR = "{\\n \\\"id\\\": 777,\\n \\\"firstName\\\": \\\"MY_VAR_1\\\",\\n \\\"MY_VAR_2\\\": \\\"Rotta\\\"\\n}";
-    String EXPECTED = "{\\n \\\"id\\\": 777,\\n \\\"firstName\\\": \\\"{{MY_VAR_1}}\\\",\\n \\\"{{MY_VAR_2}}\\\": \\\"Rotta\\\"\\n}";
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.setInputSpec("./src/test/resources/SampleProject.yaml")
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
 
-    PostmanV2Generator postmanV2Generator = new PostmanV2Generator();
-    postmanV2Generator.postmanVariableNames = new String[]{"MY_VAR_1", "MY_VAR_2"};
+		final ClientOptInput clientOptInput = configurator.toClientOptInput();
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(clientOptInput).generate();
 
-    List<PostmanRequestItem> requestItems = new ArrayList<>();
-    requestItems.add(new PostmanRequestItem("get by id", STR, "GET"));
+		files.forEach(File::deleteOnExit);
 
-    requestItems = postmanV2Generator.createPostmanVariables(requestItems);
+		Path path = Paths.get(output + "/postman.json");
+		TestUtils.assertFileExists(path);
+		TestUtils.assertFileContains(path, "{ \"key\": \"Content-Type\", \"value\": \"application/json\"");
+		TestUtils.assertFileContains(path, "{ \"key\": \"Accept\", \"value\": \"application/json\"");
+		// header without default value (disabled: true)
+		TestUtils.assertFileContains(path, "{ \"key\": \"Custom-Header\", \"value\": \"\", \"description\": \"Custom HTTP header\", \"disabled\": true");
+		// header with default value (disabled: false)
+		TestUtils.assertFileContains(path, "{ \"key\": \"Another-Custom-Header\", \"value\": \"abc\", \"description\": \"Custom HTTP header with default\", \"disabled\": false");
+	}
 
-    assertEquals(1, requestItems.size());
-    assertEquals(EXPECTED, requestItems.get(0).getBody());
-    assertEquals(2, postmanV2Generator.variables.size());
-  }
+	@Test
+	public void extractExampleByName() {
+		String str = "#/components/examples/get-user-basic";
 
-  @Test
-  public void extractPostmanVariableNames() {
-    PostmanV2Generator postmanV2Generator = new PostmanV2Generator();
+		assertEquals("get-user-basic", new PostmanV2Generator().extractExampleByName(str));
+	}
 
-    postmanV2Generator.extractPostmanVariableNames("var1-var2   -var3");
-    assertEquals(3, postmanV2Generator.postmanVariableNames.length);
-  }
+	@Test
+	public void processRequestExample() {
+		String STR = "{\\n \\\"id\\\": 777,\\n \\\"firstName\\\": \\\"MY_VAR_1\\\",\\n \\\"MY_VAR_2\\\": \\\"Rotta\\\"\\n}";
+		String EXPECTED = "{\\n \\\"id\\\": 777,\\n \\\"firstName\\\": \\\"{{MY_VAR_1}}\\\",\\n \\\"{{MY_VAR_2}}\\\": \\\"Rotta\\\"\\n}";
 
-  @Test
-  public void mapToPostmanType() {
-    assertEquals("string", new PostmanV2Generator().mapToPostmanType("String"));
-    assertEquals("number", new PostmanV2Generator().mapToPostmanType("integer"));
-    assertEquals("any", new PostmanV2Generator().mapToPostmanType("object"));
-  }
+		PostmanV2Generator postmanV2Generator = new PostmanV2Generator();
+		postmanV2Generator.postmanVariableNames = new String[]{"MY_VAR_1", "MY_VAR_2"};
 
-  @Test
-  public void testJsonExampleIncludingValueWithCommas() throws IOException, ParseException {
+		List<PostmanRequestItem> requestItems = new ArrayList<>();
+		requestItems.add(new PostmanRequestItem("get by id", STR, "GET"));
 
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
+		requestItems = postmanV2Generator.createPostmanVariables(requestItems);
 
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .setInputSpec("./src/test/resources/JsonWithCommasInJsonExample.json")
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+		assertEquals(1, requestItems.size());
+		assertEquals(EXPECTED, requestItems.get(0).getBody());
+		assertEquals(2, postmanV2Generator.variables.size());
+	}
 
-    final ClientOptInput clientOptInput = configurator.toClientOptInput();
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(clientOptInput).generate();
+	@Test
+	public void extractPostmanVariableNames() {
+		PostmanV2Generator postmanV2Generator = new PostmanV2Generator();
 
-    System.out.println(files);
-    files.forEach(File::deleteOnExit);
+		postmanV2Generator.extractPostmanVariableNames("var1-var2   -var3");
+		assertEquals(3, postmanV2Generator.postmanVariableNames.length);
+	}
 
-    Path path = Paths.get(output + "/postman.json");
-    TestUtils.assertFileExists(path);
-    // check value with commas within quotes
-    TestUtils.assertFileContains(path, "\\\"acceptHeader\\\": \\\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\\\"");
-  }
+	@Test
+	public void mapToPostmanType() {
+		assertEquals("string", new PostmanV2Generator().mapToPostmanType("String"));
+		assertEquals("number", new PostmanV2Generator().mapToPostmanType("integer"));
+		assertEquals("any", new PostmanV2Generator().mapToPostmanType("object"));
+	}
 
-  @Test
-  public void testDeprecatedEndpoint() throws IOException, ParseException {
+	@Test
+	public void testJsonExampleIncludingValueWithCommas() throws IOException, ParseException {
 
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
 
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .setInputSpec("./src/test/resources/SampleProject.yaml")
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.setInputSpec("./src/test/resources/JsonWithCommasInJsonExample.json")
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
 
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(configurator.toClientOptInput()).generate();
+		final ClientOptInput clientOptInput = configurator.toClientOptInput();
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(clientOptInput).generate();
 
-    System.out.println(files);
-    files.forEach(File::deleteOnExit);
+		System.out.println(files);
+		files.forEach(File::deleteOnExit);
 
-    Path path = Paths.get(output + "/postman.json");
-    TestUtils.assertFileExists(path);
-    // verify request name (from path)
-    TestUtils.assertFileContains(path, "(DEPRECATED)");
-  }
+		Path path = Paths.get(output + "/postman.json");
+		TestUtils.assertFileExists(path);
+		// check value with commas within quotes
+		TestUtils.assertFileContains(path, "\\\"acceptHeader\\\": \\\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\\\"");
+	}
 
-  @Test
-  public void testGeneratedVariables() throws IOException, ParseException {
+	@Test
+	public void testDeprecatedEndpoint() throws IOException, ParseException {
 
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
 
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .setInputSpec("./src/test/resources/BasicVariablesInExample.yaml")
-            .addAdditionalProperty(PostmanV2Generator.GENERATED_VARIABLES, "RANDOM_VALUE ")
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.setInputSpec("./src/test/resources/SampleProject.yaml")
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
 
-    final ClientOptInput clientOptInput = configurator.toClientOptInput();
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(clientOptInput).generate();
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(configurator.toClientOptInput()).generate();
 
-    System.out.println(files);
-    files.forEach(File::deleteOnExit);
+		System.out.println(files);
+		files.forEach(File::deleteOnExit);
 
-    Path path = Paths.get(output + "/postman.json");
-    TestUtils.assertFileExists(path);
+		Path path = Paths.get(output + "/postman.json");
+		TestUtils.assertFileExists(path);
+		// verify request name (from path)
+		TestUtils.assertFileContains(path, "(DEPRECATED)");
+	}
 
-    TestUtils.assertFileContains(path, "\\\"createDate\\\": \\\"{{$guid}}\\\"");
+	@Test
+	public void testGeneratedVariables() throws IOException, ParseException {
 
-  }
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
 
-  @Test
-  public void testFormatDescription() throws Exception {
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.setInputSpec("./src/test/resources/BasicVariablesInExample.yaml")
+				.addAdditionalProperty(PostmanV2Generator.GENERATED_VARIABLES, "RANDOM_VALUE ")
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
 
-    final String DESCRIPTION = "## Description \n\n Text with markdown \n";
-    final String EXPECTED = "## Description \\n\\n Text with markdown \\n";
+		final ClientOptInput clientOptInput = configurator.toClientOptInput();
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(clientOptInput).generate();
 
-    assertEquals(EXPECTED, new PostmanV2Generator().formatDescription(DESCRIPTION));
-  }
+		System.out.println(files);
+		files.forEach(File::deleteOnExit);
 
-  @Test
-  public void testAddToList() {
+		Path path = Paths.get(output + "/postman.json");
+		TestUtils.assertFileExists(path);
 
-    PostmanV2Generator postmanV2Generator = new PostmanV2Generator();
+		TestUtils.assertFileContains(path, "\\\"createDate\\\": \\\"{{$guid}}\\\"");
 
-    CodegenOperation operationUsers = new CodegenOperation();
-    operationUsers.path = "/users";
-    postmanV2Generator.addToList(operationUsers);
+	}
 
-    CodegenOperation operationGroups = new CodegenOperation();
-    operationGroups.path = "/groups";
-    postmanV2Generator.addToList(operationGroups);
+	@Test
+	public void testFormatDescription() throws Exception {
 
-    CodegenOperation operationUserId = new CodegenOperation();
-    operationUserId.path = "/users/{id}";
-    postmanV2Generator.addToList(operationUserId);
+		final String DESCRIPTION = "## Description \n\n Text with markdown \n";
+		final String EXPECTED = "## Description \\n\\n Text with markdown \\n";
 
-    assertEquals(3, postmanV2Generator.codegenOperationsList.size());
-    // verify order
-    assertEquals("/groups", postmanV2Generator.codegenOperationsList.get(0).path);
-    assertEquals("/users", postmanV2Generator.codegenOperationsList.get(1).path);
-    assertEquals("/users/{id}", postmanV2Generator.codegenOperationsList.get(2).path);
-  }
+		assertEquals(EXPECTED, new PostmanV2Generator().formatDescription(DESCRIPTION));
+	}
 
-  @Test
-  public void testAddToMap() {
+	@Test
+	public void testAddToList() {
 
-    PostmanV2Generator postmanV2Generator = new PostmanV2Generator();
+		PostmanV2Generator postmanV2Generator = new PostmanV2Generator();
 
-    CodegenOperation operationUsers = new CodegenOperation();
-    operationUsers.path = "/users";
-    operationUsers.tags = new ArrayList<>(Arrays.asList(new Tag().name("basic")));
-    postmanV2Generator.addToMap(operationUsers);
+		CodegenOperation operationUsers = new CodegenOperation();
+		operationUsers.path = "/users";
+		postmanV2Generator.addToList(operationUsers);
 
-    CodegenOperation operationGroups = new CodegenOperation();
-    operationGroups.path = "/groups";
-    operationGroups.tags = new ArrayList<>(Arrays.asList(new Tag().name("basic")));
-    postmanV2Generator.addToMap(operationGroups);
+		CodegenOperation operationGroups = new CodegenOperation();
+		operationGroups.path = "/groups";
+		postmanV2Generator.addToList(operationGroups);
 
-    CodegenOperation operationUserId = new CodegenOperation();
-    operationUserId.path = "/users/{id}";
-    operationUserId.tags = new ArrayList<>(Arrays.asList(new Tag().name("basic")));
-    postmanV2Generator.addToMap(operationUserId);
+		CodegenOperation operationUserId = new CodegenOperation();
+		operationUserId.path = "/users/{id}";
+		postmanV2Generator.addToList(operationUserId);
 
-    // verify tag 'basic'
-    assertEquals(1, postmanV2Generator.codegenOperationsByTag.size());
-    assertEquals(true, postmanV2Generator.codegenOperationsByTag.containsKey("basic"));
+		assertEquals(3, postmanV2Generator.codegenOperationsList.size());
+		// verify order
+		assertEquals("/groups", postmanV2Generator.codegenOperationsList.get(0).path);
+		assertEquals("/users", postmanV2Generator.codegenOperationsList.get(1).path);
+		assertEquals("/users/{id}", postmanV2Generator.codegenOperationsList.get(2).path);
+	}
 
-    List<CodegenOperation> operations = postmanV2Generator.codegenOperationsByTag.get("basic");
-    // verify order
-    assertEquals("/groups", operations.get(0).path);
-    assertEquals("/users", operations.get(1).path);
-    assertEquals("/users/{id}", operations.get(2).path);
-  }
+	@Test
+	public void testAddToMap() {
 
-  @Test
-  public void testAddToMapUsingDefaultTag() {
+		PostmanV2Generator postmanV2Generator = new PostmanV2Generator();
 
-    PostmanV2Generator postmanV2Generator = new PostmanV2Generator();
+		CodegenOperation operationUsers = new CodegenOperation();
+		operationUsers.path = "/users";
+		operationUsers.tags = new ArrayList<>(Collections.singletonList(new Tag().name("basic").description("descr")));
+		postmanV2Generator.addToMap(operationUsers);
 
-    CodegenOperation operationUsers = new CodegenOperation();
-    operationUsers.path = "/users";
-    postmanV2Generator.addToMap(operationUsers);
+		CodegenOperation operationGroups = new CodegenOperation();
+		operationGroups.path = "/groups";
+		operationGroups.tags = new ArrayList<>(Collections.singletonList(new Tag().name("basic").description("descr")));
+		postmanV2Generator.addToMap(operationGroups);
 
-    // verify tag 'default' is used
-    assertEquals(1, postmanV2Generator.codegenOperationsByTag.size());
-    assertEquals(true, postmanV2Generator.codegenOperationsByTag.containsKey("default"));
-  }
+		CodegenOperation operationUserId = new CodegenOperation();
+		operationUserId.path = "/users/{id}";
+		operationUserId.tags = new ArrayList<>(Collections.singletonList(new Tag().name("basic").description("descr")));
+		postmanV2Generator.addToMap(operationUserId);
 
-  // test special handling of `merchantId` and `companyId` path parameters
-  @Test
-  public void testMgmtApi() throws IOException, ParseException {
+		// verify tag 'basic'
+		assertEquals(1, postmanV2Generator.codegenOperationsByTag.size());
+		assertTrue(postmanV2Generator.codegenOperationsByTag.containsKey(new PostmanRequestFolder("basic", "descr")));
 
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
+		List<CodegenOperation> operations = postmanV2Generator.codegenOperationsByTag.get(new PostmanRequestFolder("basic","descr"));
+		// verify order
+		assertEquals("/groups", operations.get(0).path);
+		assertEquals("/users", operations.get(1).path);
+		assertEquals("/users/{id}", operations.get(2).path);
+	}
 
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .setInputSpec("./src/test/resources/MgmtApi.json")
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+	@Test
+	public void testAddToMapUsingDefaultTag() {
 
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(configurator.toClientOptInput()).generate();
+		PostmanV2Generator postmanV2Generator = new PostmanV2Generator();
 
-    System.out.println(files);
-    files.forEach(File::deleteOnExit);
+		CodegenOperation operationUsers = new CodegenOperation();
+		operationUsers.path = "/users";
+		postmanV2Generator.addToMap(operationUsers);
 
-    TestUtils.assertFileExists(Paths.get(output + "/postman.json"));
+		// verify tag 'default' is used
+		assertEquals(1, postmanV2Generator.codegenOperationsByTag.size());
+		assertTrue(postmanV2Generator.codegenOperationsByTag.containsKey(new PostmanRequestFolder("Default", "Default tag")));
+	}
 
-    Path path = Paths.get(output + "/postman.json");
-    TestUtils.assertFileExists(path);
+	// test special handling of `merchantId` and `companyId` path parameters
+	@Test
+	public void testMgmtApi() throws IOException, ParseException {
 
-    // verify merchantId default value
-    TestUtils.assertFileContains(path,
-            "key\": \"merchantId\", \"value\": \"{{YOUR_MERCHANT_ACCOUNT}}\",");
-    // verify companyId default value
-    TestUtils.assertFileContains(path,
-            "key\": \"companyId\", \"value\": \"{{YOUR_COMPANY_ACCOUNT}}\",");
-    // verify storeId default value is empty
-    TestUtils.assertFileContains(path,
-            "key\": \"storeId\", \"value\": \"\",");
-  }
-
-  @Test
-  public void testRequiredQueryParameter() throws IOException {
-
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
-
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .setInputSpec("./src/test/resources/SampleProject.yaml")
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
-
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(configurator.toClientOptInput()).generate();
-
-    System.out.println(files);
-    files.forEach(File::deleteOnExit);
-
-    Path path = Paths.get(output + "/postman.json");
-    TestUtils.assertFileExists(path);
-    // verify param pUserId is set as disabled=false
-    TestUtils.assertFileContains(path, "{ \"key\": \"pUserId\", \"value\": \"888\", \"description\": \"Query Id.\", \"disabled\": false");
-
-  }
-
-  @Test
-  public void testQueryParameterDescription() throws IOException {
-
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
-
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .setInputSpec("./src/test/resources/SampleProject.yaml")
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
-
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(configurator.toClientOptInput()).generate();
-
-    System.out.println(files);
-    files.forEach(File::deleteOnExit);
-
-    Path path = Paths.get(output + "/postman.json");
-    TestUtils.assertFileExists(path);
-    // verify param pUserId is set as disabled=false
-    TestUtils.assertFileContains(path, "{ \"key\": \"pUserId\", \"value\": \"888\", \"description\": \"Query Id.\"");
-
-  }
-
-  @Test
-  public void testResponses() throws IOException {
-
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
-
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .setInputSpec("./src/test/resources/CheckoutBasicMultipleKeys.yaml")
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
-
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(configurator.toClientOptInput()).generate();
-
-    System.out.println(files);
-    files.forEach(File::deleteOnExit);
-
-    Path path = Paths.get(output + "/postman.json");
-    TestUtils.assertFileExists(path);
-
-    // Testing that we have one item with a single response
-    TestUtils.assertFileContains(path,  "\"response\": [\n" +
-            "                                        {\"name\": \"OK - the request has succeeded.\",\n" +
-            "                                        \"code\": 200,\n" +
-            "                                        \"status\": \"OK\",\n" +
-            "                                        \"header\": [{\n" +
-            "                                        \"key\": \"Content-Type\",\n" +
-            "                                        \"value\": \"application/json\"}\n" +
-            "                                        ],\n" +
-            "                                        \"_postman_previewlanguage\": \"json\",\n" +
-            "                                        \"cookie\": [],\n" +
-            "                                        \"body\" : \"{\\n  \\\"pspReference\\\" : \\\"PSP1234567890\\\",\\n  \\\"resultCode\\\" : \\\"success\\\"\\n}\",\n" +
-            "                                        \"originalRequest\": {\n" +
-            "    \"method\": \"POST\",\n" +
-            "    \"header\": [\n" +
-            "        {\n" +
-            "        \"key\": \"Content-Type\",\n" +
-            "        \"value\": \"application/json\",\n" +
-            "        \"description\": \"\",\n" +
-            "        \"disabled\": false\n" +
-            "        },\n" +
-            "        {\n" +
-            "        \"key\": \"Accept\",\n" +
-            "        \"value\": \"application/json\",\n" +
-            "        \"description\": \"\",\n" +
-            "        \"disabled\": false\n" +
-            "        }\n" +
-            "    ],\n" +
-            "    \"body\": {\n" +
-            "    \"mode\": \"raw\",\n" +
-            "    \"raw\": \"{\\n  \\\"paymentMethod\\\" : {\\n    \\\"name\\\" : \\\"googlepay\\\"\\n  },\\n  \\\"amount\\\" : {\\n    \\\"currency\\\" : \\\"EUR\\\",\\n    \\\"value\\\" : 1000\\n  },\\n  \\\"merchantAccount\\\" : \\\"YOUR_MERCHANT_ACCOUNT\\\",\\n  \\\"reference\\\" : \\\"YOUR_REFERENCE\\\",\\n  \\\"channel\\\" : \\\"Android\\\"\\n}\",\n" +
-            "    \"options\": {\n" +
-            "    \"raw\": {\n" +
-            "    \"language\": \"json\"\n" +
-            "    }\n" +
-            "    }\n" +
-            "    },\n" +
-            "    \"url\": {\n" +
-            "    \"raw\": \"{{baseUrl}}/payments\",\n" +
-            "    \"host\": [\n" +
-            "    \"{{baseUrl}}\"\n" +
-            "    ],\n" +
-            "    \"path\": [\n" +
-            "        \"payments\"\n" +
-            "    ],\n" +
-            "    \"variable\": [\n" +
-            "    ],\n" +
-            "    \"query\": [\n" +
-            "    ]\n" +
-            "    },\n" +
-            "    \"description\": \"\"\n" +
-            "}\n" +
-            "                                        }\n" +
-            "                                ]");
-
-    // Checking that we have one item with two responses (duplicate keys), including failure
-    TestUtils.assertFileContains(path, "\"response\": [\n" +
-            "                                        {\"name\": \"OK - the request has succeeded.\",\n" +
-            "                                        \"code\": 200,\n" +
-            "                                        \"status\": \"OK\",\n" +
-            "                                        \"header\": [{\n" +
-            "                                        \"key\": \"Content-Type\",\n" +
-            "                                        \"value\": \"application/json\"}\n" +
-            "                                        ],\n" +
-            "                                        \"_postman_previewlanguage\": \"json\",\n" +
-            "                                        \"cookie\": [],\n" +
-            "                                        \"body\" : \"{\\n  \\\"pspReference\\\" : \\\"PSP1234567890\\\",\\n  \\\"resultCode\\\" : \\\"success\\\"\\n}\",\n" +
-            "                                        \"originalRequest\": {\n" +
-            "    \"method\": \"POST\",\n" +
-            "    \"header\": [\n" +
-            "        {\n" +
-            "        \"key\": \"Content-Type\",\n" +
-            "        \"value\": \"application/json\",\n" +
-            "        \"description\": \"\",\n" +
-            "        \"disabled\": false\n" +
-            "        },\n" +
-            "        {\n" +
-            "        \"key\": \"Accept\",\n" +
-            "        \"value\": \"application/json\",\n" +
-            "        \"description\": \"\",\n" +
-            "        \"disabled\": false\n" +
-            "        }\n" +
-            "    ],\n" +
-            "    \"body\": {\n" +
-            "    \"mode\": \"raw\",\n" +
-            "    \"raw\": \"{\\n  \\\"paymentMethod\\\" : {\\n    \\\"name\\\" : \\\"applepay\\\"\\n  },\\n  \\\"amount\\\" : {\\n    \\\"currency\\\" : \\\"EUR\\\",\\n    \\\"value\\\" : 1000\\n  },\\n  \\\"merchantAccount\\\" : \\\"YOUR_MERCHANT_ACCOUNT\\\",\\n  \\\"reference\\\" : \\\"YOUR_REFERENCE\\\",\\n  \\\"channel\\\" : \\\"iOS\\\"\\n}\",\n" +
-            "    \"options\": {\n" +
-            "    \"raw\": {\n" +
-            "    \"language\": \"json\"\n" +
-            "    }\n" +
-            "    }\n" +
-            "    },\n" +
-            "    \"url\": {\n" +
-            "    \"raw\": \"{{baseUrl}}/payments\",\n" +
-            "    \"host\": [\n" +
-            "    \"{{baseUrl}}\"\n" +
-            "    ],\n" +
-            "    \"path\": [\n" +
-            "        \"payments\"\n" +
-            "    ],\n" +
-            "    \"variable\": [\n" +
-            "    ],\n" +
-            "    \"query\": [\n" +
-            "    ]\n" +
-            "    },\n" +
-            "    \"description\": \"\"\n" +
-            "}\n" +
-            "                                        },\n" +
-            "                                        {\"name\": \"Unprocessable Entity - a request validation error.\",\n" +
-            "                                        \"code\": 422,\n" +
-            "                                        \"status\": \"Unprocessable Entity\",\n" +
-            "                                        \"header\": [{\n" +
-            "                                        \"key\": \"Content-Type\",\n" +
-            "                                        \"value\": \"application/json\"}\n" +
-            "                                        ],\n" +
-            "                                        \"_postman_previewlanguage\": \"json\",\n" +
-            "                                        \"cookie\": [],\n" +
-            "                                        \"body\" : \"{\\n  \\\"code\\\" : \\\"422 - 900\\\",\\n  \\\"message\\\" : \\\"Merchant account does not exist\\\"\\n}\",\n" +
-            "                                        \"originalRequest\": {\n" +
-            "    \"method\": \"POST\",\n" +
-            "    \"header\": [\n" +
-            "        {\n" +
-            "        \"key\": \"Content-Type\",\n" +
-            "        \"value\": \"application/json\",\n" +
-            "        \"description\": \"\",\n" +
-            "        \"disabled\": false\n" +
-            "        },\n" +
-            "        {\n" +
-            "        \"key\": \"Accept\",\n" +
-            "        \"value\": \"application/json\",\n" +
-            "        \"description\": \"\",\n" +
-            "        \"disabled\": false\n" +
-            "        }\n" +
-            "    ],\n" +
-            "    \"body\": {\n" +
-            "    \"mode\": \"raw\",\n" +
-            "    \"raw\": \"{\\n  \\\"paymentMethod\\\" : {\\n    \\\"name\\\" : \\\"applepay\\\"\\n  },\\n  \\\"amount\\\" : {\\n    \\\"currency\\\" : \\\"EUR\\\",\\n    \\\"value\\\" : 1000\\n  },\\n  \\\"merchantAccount\\\" : \\\"YOUR_MERCHANT_ACCOUNT\\\",\\n  \\\"reference\\\" : \\\"YOUR_REFERENCE\\\",\\n  \\\"channel\\\" : \\\"iOS\\\"\\n}\",\n" +
-            "    \"options\": {\n" +
-            "    \"raw\": {\n" +
-            "    \"language\": \"json\"\n" +
-            "    }\n" +
-            "    }\n" +
-            "    },\n" +
-            "    \"url\": {\n" +
-            "    \"raw\": \"{{baseUrl}}/payments\",\n" +
-            "    \"host\": [\n" +
-            "    \"{{baseUrl}}\"\n" +
-            "    ],\n" +
-            "    \"path\": [\n" +
-            "        \"payments\"\n" +
-            "    ],\n" +
-            "    \"variable\": [\n" +
-            "    ],\n" +
-            "    \"query\": [\n" +
-            "    ]\n" +
-            "    },\n" +
-            "    \"description\": \"\"\n" +
-            "}\n" +
-            "                                        }\n" +
-            "                                ]");
-
-    // Checking that there is no place with an empty response that looks bad
-    TestUtils.assertFileNotContains(path, "\"response\": [{\n" +
-            "                                    \"name\": \"\",\n" +
-            "                                    \"code\": \"\",\n" +
-            "                                    \"status\": \"\",\n" +
-            "                                    \"header\": null,\n" +
-            "                                    \"cookie\": [],\n" +
-            "                                    \"body\" : \"\"\n" +
-            "                                }]");
-
-  }
-
-  @Test
-  public void testInlineExamples() throws IOException {
-
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
-
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .setInputSpec("./src/test/resources/ForeignExchangeService-v1.json")
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
-
-    final ClientOptInput clientOptInput = configurator.toClientOptInput();
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(clientOptInput).generate();
-
-    System.out.println(files);
-    files.forEach(File::deleteOnExit);
-
-    Path path = Paths.get(output + "/postman.json");
-    TestUtils.assertFileExists(path);
-    TestUtils.assertFileContains(path, "\"schema\": \"https://schema.getpostman.com/json/collection/v2.1.0/collection.json\"");
-
-    // verify request name (from summary)
-    TestUtils.assertFileContains(path, "\"name\": \"Foreign Exchange API\"");
-    // verify request endpoint
-    TestUtils.assertFileContains(path, "\"name\": \"/rates/calculate\",");
-    // verify response is included
-    TestUtils.assertFileContains(path, "\"response\": [\n" +
-            "                                        {\"name\": \"Successful operation\",\n" +
-            "                                        \"code\": 200,\n" +
-            "                                        \"status\": \"OK\",\n" +
-            "                                        \"header\": [{\n" +
-            "                                        \"key\": \"Content-Type\",\n" +
-            "                                        \"value\": \"application/json\"}\n");
-  }
-
-  @Test
-  public void getGetResponseExample() throws IOException, ParseException {
-
-    File output = Files.createTempDirectory("postmantest_").toFile();
-    output.deleteOnExit();
-
-    final CodegenConfigurator configurator = new CodegenConfigurator()
-            .setGeneratorName("postman-v2")
-            .setInputSpec("./src/test/resources/CheckoutService-v71.yaml")
-            .setOutputDir(output.getAbsolutePath().replace("\\", "/"));
-
-    final ClientOptInput clientOptInput = configurator.toClientOptInput();
-    DefaultGenerator generator = new DefaultGenerator();
-    List<File> files = generator.opts(clientOptInput).generate();
-
-    System.out.println(files);
-    files.forEach(File::deleteOnExit);
-
-    Path path = Paths.get(output + "/postman.json");
-    TestUtils.assertFileExists(path);
-
-    TestUtils.assertFileContains(path, "\"description\": \"Retrieves the payment link details using the payment link `id`.");
-    TestUtils.assertFileContains(path, "\"name\": \"Successful getPaymentLink GET response example\",");
-
-  }
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
+
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.setInputSpec("./src/test/resources/MgmtApi.json")
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(configurator.toClientOptInput()).generate();
+
+		System.out.println(files);
+		files.forEach(File::deleteOnExit);
+
+		TestUtils.assertFileExists(Paths.get(output + "/postman.json"));
+
+		Path path = Paths.get(output + "/postman.json");
+		TestUtils.assertFileExists(path);
+
+		// verify merchantId default value
+		TestUtils.assertFileContains(path,
+				"key\": \"merchantId\", \"value\": \"{{YOUR_MERCHANT_ACCOUNT}}\",");
+		// verify companyId default value
+		TestUtils.assertFileContains(path,
+				"key\": \"companyId\", \"value\": \"{{YOUR_COMPANY_ACCOUNT}}\",");
+		// verify storeId default value is empty
+		TestUtils.assertFileContains(path,
+				"key\": \"storeId\", \"value\": \"\",");
+	}
+
+	@Test
+	public void testRequiredQueryParameter() throws IOException {
+
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
+
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.setInputSpec("./src/test/resources/SampleProject.yaml")
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(configurator.toClientOptInput()).generate();
+
+		System.out.println(files);
+		files.forEach(File::deleteOnExit);
+
+		Path path = Paths.get(output + "/postman.json");
+		TestUtils.assertFileExists(path);
+		// verify param pUserId is set as disabled=false
+		TestUtils.assertFileContains(path, "{ \"key\": \"pUserId\", \"value\": \"888\", \"description\": \"Query Id.\", \"disabled\": false");
+
+	}
+
+	@Test
+	public void testQueryParameterDescription() throws IOException {
+
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
+
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.setInputSpec("./src/test/resources/SampleProject.yaml")
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(configurator.toClientOptInput()).generate();
+
+		System.out.println(files);
+		files.forEach(File::deleteOnExit);
+
+		Path path = Paths.get(output + "/postman.json");
+		TestUtils.assertFileExists(path);
+		// verify param pUserId is set as disabled=false
+		TestUtils.assertFileContains(path, "{ \"key\": \"pUserId\", \"value\": \"888\", \"description\": \"Query Id.\"");
+
+	}
+
+	@Test
+	public void testResponses() throws IOException {
+
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
+
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.setInputSpec("./src/test/resources/CheckoutBasicMultipleKeys.yaml")
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(configurator.toClientOptInput()).generate();
+
+		System.out.println(files);
+		files.forEach(File::deleteOnExit);
+
+		Path path = Paths.get(output + "/postman.json");
+		TestUtils.assertFileExists(path);
+
+		// Testing that we have one item with a single response
+		TestUtils.assertFileContains(path, "\"response\": [\n" +
+				"                                        {\"name\": \"OK - the request has succeeded.\",\n" +
+				"                                        \"code\": 200,\n" +
+				"                                        \"status\": \"OK\",\n" +
+				"                                        \"header\": [{\n" +
+				"                                        \"key\": \"Content-Type\",\n" +
+				"                                        \"value\": \"application/json\"}\n" +
+				"                                        ],\n" +
+				"                                        \"_postman_previewlanguage\": \"json\",\n" +
+				"                                        \"cookie\": [],\n" +
+				"                                        \"body\" : \"{\\n  \\\"pspReference\\\" : \\\"PSP1234567890\\\",\\n  \\\"resultCode\\\" : \\\"success\\\"\\n}\",\n" +
+				"                                        \"originalRequest\": {\n" +
+				"    \"method\": \"POST\",\n" +
+				"    \"header\": [\n" +
+				"        {\n" +
+				"        \"key\": \"Content-Type\",\n" +
+				"        \"value\": \"application/json\",\n" +
+				"        \"description\": \"\",\n" +
+				"        \"disabled\": false\n" +
+				"        },\n" +
+				"        {\n" +
+				"        \"key\": \"Accept\",\n" +
+				"        \"value\": \"application/json\",\n" +
+				"        \"description\": \"\",\n" +
+				"        \"disabled\": false\n" +
+				"        }\n" +
+				"    ],\n" +
+				"    \"body\": {\n" +
+				"    \"mode\": \"raw\",\n" +
+				"    \"raw\": \"{\\n  \\\"paymentMethod\\\" : {\\n    \\\"name\\\" : \\\"googlepay\\\"\\n  },\\n  \\\"amount\\\" : {\\n    \\\"currency\\\" : \\\"EUR\\\",\\n    \\\"value\\\" : 1000\\n  },\\n  \\\"merchantAccount\\\" : \\\"YOUR_MERCHANT_ACCOUNT\\\",\\n  \\\"reference\\\" : \\\"YOUR_REFERENCE\\\",\\n  \\\"channel\\\" : \\\"Android\\\"\\n}\",\n" +
+				"    \"options\": {\n" +
+				"    \"raw\": {\n" +
+				"    \"language\": \"json\"\n" +
+				"    }\n" +
+				"    }\n" +
+				"    },\n" +
+				"    \"url\": {\n" +
+				"    \"raw\": \"{{baseUrl}}/payments\",\n" +
+				"    \"host\": [\n" +
+				"    \"{{baseUrl}}\"\n" +
+				"    ],\n" +
+				"    \"path\": [\n" +
+				"        \"payments\"\n" +
+				"    ],\n" +
+				"    \"variable\": [\n" +
+				"    ],\n" +
+				"    \"query\": [\n" +
+				"    ]\n" +
+				"    },\n" +
+				"    \"description\": \"\"\n" +
+				"}\n" +
+				"                                        }\n" +
+				"                                ]");
+
+		// Checking that we have one item with two responses (duplicate keys), including failure
+		TestUtils.assertFileContains(path, "\"response\": [\n" +
+				"                                        {\"name\": \"OK - the request has succeeded.\",\n" +
+				"                                        \"code\": 200,\n" +
+				"                                        \"status\": \"OK\",\n" +
+				"                                        \"header\": [{\n" +
+				"                                        \"key\": \"Content-Type\",\n" +
+				"                                        \"value\": \"application/json\"}\n" +
+				"                                        ],\n" +
+				"                                        \"_postman_previewlanguage\": \"json\",\n" +
+				"                                        \"cookie\": [],\n" +
+				"                                        \"body\" : \"{\\n  \\\"pspReference\\\" : \\\"PSP1234567890\\\",\\n  \\\"resultCode\\\" : \\\"success\\\"\\n}\",\n" +
+				"                                        \"originalRequest\": {\n" +
+				"    \"method\": \"POST\",\n" +
+				"    \"header\": [\n" +
+				"        {\n" +
+				"        \"key\": \"Content-Type\",\n" +
+				"        \"value\": \"application/json\",\n" +
+				"        \"description\": \"\",\n" +
+				"        \"disabled\": false\n" +
+				"        },\n" +
+				"        {\n" +
+				"        \"key\": \"Accept\",\n" +
+				"        \"value\": \"application/json\",\n" +
+				"        \"description\": \"\",\n" +
+				"        \"disabled\": false\n" +
+				"        }\n" +
+				"    ],\n" +
+				"    \"body\": {\n" +
+				"    \"mode\": \"raw\",\n" +
+				"    \"raw\": \"{\\n  \\\"paymentMethod\\\" : {\\n    \\\"name\\\" : \\\"applepay\\\"\\n  },\\n  \\\"amount\\\" : {\\n    \\\"currency\\\" : \\\"EUR\\\",\\n    \\\"value\\\" : 1000\\n  },\\n  \\\"merchantAccount\\\" : \\\"YOUR_MERCHANT_ACCOUNT\\\",\\n  \\\"reference\\\" : \\\"YOUR_REFERENCE\\\",\\n  \\\"channel\\\" : \\\"iOS\\\"\\n}\",\n" +
+				"    \"options\": {\n" +
+				"    \"raw\": {\n" +
+				"    \"language\": \"json\"\n" +
+				"    }\n" +
+				"    }\n" +
+				"    },\n" +
+				"    \"url\": {\n" +
+				"    \"raw\": \"{{baseUrl}}/payments\",\n" +
+				"    \"host\": [\n" +
+				"    \"{{baseUrl}}\"\n" +
+				"    ],\n" +
+				"    \"path\": [\n" +
+				"        \"payments\"\n" +
+				"    ],\n" +
+				"    \"variable\": [\n" +
+				"    ],\n" +
+				"    \"query\": [\n" +
+				"    ]\n" +
+				"    },\n" +
+				"    \"description\": \"\"\n" +
+				"}\n" +
+				"                                        },\n" +
+				"                                        {\"name\": \"Unprocessable Entity - a request validation error.\",\n" +
+				"                                        \"code\": 422,\n" +
+				"                                        \"status\": \"Unprocessable Entity\",\n" +
+				"                                        \"header\": [{\n" +
+				"                                        \"key\": \"Content-Type\",\n" +
+				"                                        \"value\": \"application/json\"}\n" +
+				"                                        ],\n" +
+				"                                        \"_postman_previewlanguage\": \"json\",\n" +
+				"                                        \"cookie\": [],\n" +
+				"                                        \"body\" : \"{\\n  \\\"code\\\" : \\\"422 - 900\\\",\\n  \\\"message\\\" : \\\"Merchant account does not exist\\\"\\n}\",\n" +
+				"                                        \"originalRequest\": {\n" +
+				"    \"method\": \"POST\",\n" +
+				"    \"header\": [\n" +
+				"        {\n" +
+				"        \"key\": \"Content-Type\",\n" +
+				"        \"value\": \"application/json\",\n" +
+				"        \"description\": \"\",\n" +
+				"        \"disabled\": false\n" +
+				"        },\n" +
+				"        {\n" +
+				"        \"key\": \"Accept\",\n" +
+				"        \"value\": \"application/json\",\n" +
+				"        \"description\": \"\",\n" +
+				"        \"disabled\": false\n" +
+				"        }\n" +
+				"    ],\n" +
+				"    \"body\": {\n" +
+				"    \"mode\": \"raw\",\n" +
+				"    \"raw\": \"{\\n  \\\"paymentMethod\\\" : {\\n    \\\"name\\\" : \\\"applepay\\\"\\n  },\\n  \\\"amount\\\" : {\\n    \\\"currency\\\" : \\\"EUR\\\",\\n    \\\"value\\\" : 1000\\n  },\\n  \\\"merchantAccount\\\" : \\\"YOUR_MERCHANT_ACCOUNT\\\",\\n  \\\"reference\\\" : \\\"YOUR_REFERENCE\\\",\\n  \\\"channel\\\" : \\\"iOS\\\"\\n}\",\n" +
+				"    \"options\": {\n" +
+				"    \"raw\": {\n" +
+				"    \"language\": \"json\"\n" +
+				"    }\n" +
+				"    }\n" +
+				"    },\n" +
+				"    \"url\": {\n" +
+				"    \"raw\": \"{{baseUrl}}/payments\",\n" +
+				"    \"host\": [\n" +
+				"    \"{{baseUrl}}\"\n" +
+				"    ],\n" +
+				"    \"path\": [\n" +
+				"        \"payments\"\n" +
+				"    ],\n" +
+				"    \"variable\": [\n" +
+				"    ],\n" +
+				"    \"query\": [\n" +
+				"    ]\n" +
+				"    },\n" +
+				"    \"description\": \"\"\n" +
+				"}\n" +
+				"                                        }\n" +
+				"                                ]");
+
+		// Checking that there is no place with an empty response that looks bad
+		TestUtils.assertFileNotContains(path, "\"response\": [{\n" +
+				"                                    \"name\": \"\",\n" +
+				"                                    \"code\": \"\",\n" +
+				"                                    \"status\": \"\",\n" +
+				"                                    \"header\": null,\n" +
+				"                                    \"cookie\": [],\n" +
+				"                                    \"body\" : \"\"\n" +
+				"                                }]");
+
+	}
+
+	@Test
+	public void testInlineExamples() throws IOException {
+
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
+
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.setInputSpec("./src/test/resources/ForeignExchangeService-v1.json")
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+
+		final ClientOptInput clientOptInput = configurator.toClientOptInput();
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(clientOptInput).generate();
+
+		System.out.println(files);
+		files.forEach(File::deleteOnExit);
+
+		Path path = Paths.get(output + "/postman.json");
+		TestUtils.assertFileExists(path);
+		TestUtils.assertFileContains(path, "\"schema\": \"https://schema.getpostman.com/json/collection/v2.1.0/collection.json\"");
+
+		// verify request name (from summary)
+		TestUtils.assertFileContains(path, "\"name\": \"Foreign Exchange API\"");
+		// verify request endpoint
+		TestUtils.assertFileContains(path, "\"name\": \"/rates/calculate\",");
+		// verify response is included
+		TestUtils.assertFileContains(path, "\"response\": [\n" +
+				"                                        {\"name\": \"Successful operation\",\n" +
+				"                                        \"code\": 200,\n" +
+				"                                        \"status\": \"OK\",\n" +
+				"                                        \"header\": [{\n" +
+				"                                        \"key\": \"Content-Type\",\n" +
+				"                                        \"value\": \"application/json\"}\n");
+	}
+
+	@Test
+	public void getGetResponseExample() throws IOException, ParseException {
+
+		File output = Files.createTempDirectory("postmantest_").toFile();
+		output.deleteOnExit();
+
+		final CodegenConfigurator configurator = new CodegenConfigurator()
+				.setGeneratorName("postman-v2")
+				.setInputSpec("./src/test/resources/CheckoutService-v71.yaml")
+				.setOutputDir(output.getAbsolutePath().replace("\\", "/"));
+
+		final ClientOptInput clientOptInput = configurator.toClientOptInput();
+		DefaultGenerator generator = new DefaultGenerator();
+		List<File> files = generator.opts(clientOptInput).generate();
+
+		System.out.println(files);
+		files.forEach(File::deleteOnExit);
+
+		Path path = Paths.get(output + "/postman.json");
+		TestUtils.assertFileExists(path);
+
+		TestUtils.assertFileContains(path, "\"description\": \"Retrieves the payment link details using the payment link `id`.");
+		TestUtils.assertFileContains(path, "\"name\": \"Successful getPaymentLink GET response example\",");
+
+	}
+
+	@Test
+	public void testPostmanRequestFolderInMap() {
+		PostmanRequestFolder folder1 = new PostmanRequestFolder("test", "descr");
+		Map<PostmanRequestFolder, String> map = new HashMap<>();
+		map.put(folder1, "folder1");
+		PostmanRequestFolder folder2 = new PostmanRequestFolder("test", "descr");
+		Assert.assertTrue(map.containsKey(folder2));
+		Assert.assertEquals("folder1", map.get(folder2));
+	}
 
 }
