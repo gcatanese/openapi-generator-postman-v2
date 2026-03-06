@@ -597,6 +597,22 @@ public class PostmanV2GeneratorTest {
 		assertTrue(postmanV2Generator.codegenOperationsByTag.containsKey(new PostmanRequestFolder("Default", "Default tag")));
 	}
 
+	@Test
+	public void testAddToMapEscapesFolderDescription() {
+
+		PostmanV2Generator postmanV2Generator = new PostmanV2Generator();
+
+		CodegenOperation operation = new CodegenOperation();
+		operation.path = "/users";
+		operation.tags = new ArrayList<>(Collections.singletonList(
+				new Tag().name("basic").description("Tag with \"quotes\" and \nnewlines")));
+		postmanV2Generator.addToMap(operation);
+
+		// verify folder description has quotes and newlines escaped
+		assertTrue(postmanV2Generator.codegenOperationsByTag.containsKey(
+				new PostmanRequestFolder("basic", "Tag with \\\"quotes\\\" and \\nnewlines")));
+	}
+
 	// test special handling of `merchantId` and `companyId` path parameters
 	@Test
 	public void testMgmtApi() throws IOException, ParseException {
