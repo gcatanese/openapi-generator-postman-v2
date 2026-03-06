@@ -1,5 +1,6 @@
 package com.adyen.codegen.postman;
 
+import com.adyen.codegen.postman.model.PostmanRequestFolder;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.adyen.codegen.postman.model.PostmanRequestItem;
 import io.swagger.v3.oas.models.tags.Tag;
@@ -20,9 +21,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -34,8 +33,8 @@ public class PostmanV2GeneratorTest {
     final PostmanV2Generator postmanV2Generator = new PostmanV2Generator();
     postmanV2Generator.processOpts();
 
-    Assert.assertEquals(postmanV2Generator.folderStrategy, "Tags");
-    Assert.assertEquals(postmanV2Generator.postmanFile, "postman.json");
+    Assert.assertEquals("Tags", postmanV2Generator.folderStrategy);
+    Assert.assertEquals("postman.json", postmanV2Generator.postmanFile);
 
     Assert.assertNull(postmanV2Generator.additionalProperties().get("codegenOperationsList"));
     Assert.assertNotNull(postmanV2Generator.additionalProperties().get("codegenOperationsByTag"));
@@ -48,7 +47,7 @@ public class PostmanV2GeneratorTest {
     postmanV2Generator.additionalProperties().put(postmanV2Generator.FOLDER_STRATEGY, "Tags");
     postmanV2Generator.processOpts();
 
-    Assert.assertEquals(postmanV2Generator.folderStrategy, "Tags");
+    Assert.assertEquals("Tags", postmanV2Generator.folderStrategy);
 
     Assert.assertNull(postmanV2Generator.additionalProperties().get("codegenOperationsList"));
     Assert.assertNotNull(postmanV2Generator.additionalProperties().get("codegenOperationsByTag"));
@@ -62,7 +61,7 @@ public class PostmanV2GeneratorTest {
     postmanV2Generator.processOpts();
 
     Assert.assertTrue(postmanV2Generator.isCreatePostmanVariables());
-    Assert.assertArrayEquals(postmanV2Generator.postmanVariableNames, new String[]{"VAR1", "VAR2", "VAR3"});
+    Assert.assertArrayEquals(new String[]{"VAR1", "VAR2", "VAR3"}, postmanV2Generator.postmanVariableNames);
   }
 
   @Test
@@ -91,6 +90,9 @@ public class PostmanV2GeneratorTest {
     TestUtils.assertFileContains(path, "\"name\": \"Get User\"");
     // verify request endpoint
     TestUtils.assertFileContains(path, "\"name\": \"/users/:userId\"");
+    // verify folder match tag
+    TestUtils.assertFileContains(path, "\"name\": \"basic\"");
+    TestUtils.assertFileContains(path, "\"description\": \"A group of a Basic endpoints\"");
 
   }
 
@@ -115,6 +117,11 @@ public class PostmanV2GeneratorTest {
     Path path = Paths.get(output + "/postman.json");
     TestUtils.assertFileExists(path);
     TestUtils.assertFileContains(path, "\"schema\": \"https://schema.getpostman.com/json/collection/v2.1.0/collection.json\"");
+
+    // verify folder name
+    TestUtils.assertFileContains(path, "\"name\": \"Basic\"");
+    // verify folder description when tag description is not available
+    TestUtils.assertFileContains(path, "\"description\": \"Basic tag\"");
   }
 
   @Test
@@ -550,24 +557,24 @@ public class PostmanV2GeneratorTest {
 
     CodegenOperation operationUsers = new CodegenOperation();
     operationUsers.path = "/users";
-    operationUsers.tags = new ArrayList<>(Arrays.asList(new Tag().name("basic")));
+    operationUsers.tags = new ArrayList<>(Collections.singletonList(new Tag().name("basic").description("descr")));
     postmanV2Generator.addToMap(operationUsers);
 
     CodegenOperation operationGroups = new CodegenOperation();
     operationGroups.path = "/groups";
-    operationGroups.tags = new ArrayList<>(Arrays.asList(new Tag().name("basic")));
+    operationGroups.tags = new ArrayList<>(Collections.singletonList(new Tag().name("basic").description("descr")));
     postmanV2Generator.addToMap(operationGroups);
 
     CodegenOperation operationUserId = new CodegenOperation();
     operationUserId.path = "/users/{id}";
-    operationUserId.tags = new ArrayList<>(Arrays.asList(new Tag().name("basic")));
+    operationUserId.tags = new ArrayList<>(Collections.singletonList(new Tag().name("basic").description("descr")));
     postmanV2Generator.addToMap(operationUserId);
 
     // verify tag 'basic'
     assertEquals(1, postmanV2Generator.codegenOperationsByTag.size());
-    assertEquals(true, postmanV2Generator.codegenOperationsByTag.containsKey("basic"));
+	  assertTrue(postmanV2Generator.codegenOperationsByTag.containsKey(new PostmanRequestFolder().name("basic").description("descr")));
 
-    List<CodegenOperation> operations = postmanV2Generator.codegenOperationsByTag.get("basic");
+    List<CodegenOperation> operations = postmanV2Generator.codegenOperationsByTag.get(new PostmanRequestFolder().name("basic").description("descr"));
     // verify order
     assertEquals("/groups", operations.get(0).path);
     assertEquals("/users", operations.get(1).path);
@@ -585,7 +592,7 @@ public class PostmanV2GeneratorTest {
 
     // verify tag 'default' is used
     assertEquals(1, postmanV2Generator.codegenOperationsByTag.size());
-    assertEquals(true, postmanV2Generator.codegenOperationsByTag.containsKey("default"));
+	  assertTrue(postmanV2Generator.codegenOperationsByTag.containsKey(new PostmanRequestFolder().name("Default").description("Default tag")));
   }
 
   // test special handling of `merchantId` and `companyId` path parameters
@@ -923,6 +930,18 @@ public class PostmanV2GeneratorTest {
     TestUtils.assertFileContains(path, "\"description\": \"Retrieves the payment link details using the payment link `id`.");
     TestUtils.assertFileContains(path, "\"name\": \"Successful getPaymentLink GET response example\",");
 
+  }
+
+  @Test
+  public void testPostmanRequestFolderInMap() {
+    PostmanRequestFolder folder = new PostmanRequestFolder()
+        .name("test")
+        .description("descr");
+
+    Map<PostmanRequestFolder, String> map = new HashMap<>();
+    map.put(folder, "folder1");
+
+    Assert.assertTrue(map.containsKey(folder));
   }
 
 }
