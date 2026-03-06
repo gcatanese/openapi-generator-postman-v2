@@ -5,10 +5,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.fail;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.assertFalse;
+import static org.junit.Assert.*;
+
 
 public class TestUtils {
 
@@ -18,7 +16,7 @@ public class TestUtils {
             String file = linearize(generatedFile);
             assertNotNull(file);
             for (String line : lines)
-                assertTrue(file.contains(linearize(line)), "File does not contain line [" + line + "]");
+                assertTrue( "File does not contain line [" + line + "]", file.contains(linearize(line)));
         } catch (IOException e) {
             fail("Unable to evaluate file " + path);
         }
