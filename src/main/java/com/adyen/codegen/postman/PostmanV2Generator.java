@@ -284,6 +284,8 @@ public class PostmanV2Generator extends DefaultCodegen implements CodegenConfig 
       tagDescription = codegenOperation.tags.get(0).getDescription();
       if(tagDescription == null) {
         tagDescription = tagName + " tag";
+      } else {
+        tagDescription = formatDescription(tagDescription);
       }
     }
     PostmanRequestFolder folder = new PostmanRequestFolder(tagName, tagDescription);
